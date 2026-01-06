@@ -1,0 +1,49 @@
+#Objective: To create a scraping agent that reads the customer reviews and analyses the reviews to pull up facts/features as to why the customers keep or return the products
+#Using Gemini free tier model: gemini-2.5-flash-lite
+
+import os
+from openai import OpenAI
+#Requests and Beautiful Soup for web scraping
+import requests
+from bs4 import BeautifulSoup
+#The libraries that help create a template for the responses
+from IPython.display import Markdown, display
+
+#The gemini end point, the api key generated from the developers site and reading the API and end point
+Gemini_base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+google_api_key = os.getenv("GOOGLE_API_KEY")
+gemini = OpenAI(base_url=Gemini_base_url, api_key=google_api_key)
+
+#To read the content of the mentioned URL
+def fetch_website_contents(url):
+    responses= requests.get(url)
+    soup = BeautifulSoup(responses.text,'html.parser')
+    for script_or_style in soup(["script","style"]):
+        script_or_style.decompose()
+    return soup.get_text(separator=' ')
+
+#To read the summary of the reviews:
+def summarise_reviews(url):
+    review_data=fetch_website_contents(url)
+
+    #Step 1: System Prompt to tell the system what kind of agent it is, and user prompt to fetch the data from the scraped website
+    system_prompt="Act as a Customer serving Bot to review the customers reviews on the product with intricate details as to why customers keep the product or return it"
+    user_prompt=f"Here are the reviews :{review_data}"
+
+    #Step 2: Reading the data and enabling the response, being returned by the LLM 
+    messages =[
+    {"role":"system", "content":system_prompt},
+    {"role":"user","content":user_prompt}]
+    response = gemini.chat.completions.create(model="gemini-2.5-flash-lite", messages=messages)
+    return (response.choices[0].message.content)
+
+#To have the display appropriately
+def display_summary(url):
+    summary = summarise_reviews(url)
+    display(Markdown(summary))
+
+#To print the extracted data and LLMs responses
+display_summary("https://www.flipkart.com/kedar-fab-embroidered-semi-stitched-lehenga-choli/p/itmb66ac1ea465a6?pid=LCHGZPGBVPV9KG7M&lid=LSTLCHGZPGBVPV9KG7MVZBITA&marketplace=FLIPKART&store=clo%2Fhlg%2Fwrp&srno=b_1_1&otracker=browse&fm=organic&iid=en_2bwhpJle6jLLLVQMBZfuSRcpgt7fdEYR9I2y5Hb3hcoaIrz0eVfqOGSctW7qvCN9nXJ911lO4T3UwnlEMOC-mw%3D%3D&ppt=browse&ppn=browse&ssid=wuuqxnaxkg0000001767705868636")
+
+
+
